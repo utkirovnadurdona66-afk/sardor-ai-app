@@ -135,6 +135,52 @@
   }
   .composer button:hover{background:var(--gold-soft);}
   .composer button:disabled{opacity:0.5;cursor:default;}
+  .iconBtn{
+    padding:0 14px !important;
+    background:transparent !important;
+    border:1px solid rgba(201,162,39,0.4) !important;
+    color:var(--gold-soft) !important;
+    font-size:18px !important;
+  }
+  .iconBtn.active{
+    background:var(--turquoise) !important;
+    color:var(--lapis-dark) !important;
+    border-color:var(--turquoise) !important;
+  }
+  .msg img{
+    max-width:100%;
+    border-radius:10px;
+    display:block;
+    margin-top:8px;
+  }
+  .imgPreviewBar{
+    display:none;
+    align-items:center;
+    gap:10px;
+    padding:8px 28px;
+    background:var(--lapis-dark);
+    border-top:1px solid rgba(230,200,105,0.15);
+  }
+  .imgPreviewBar.show{ display:flex; }
+  .imgPreviewBar img{
+    height:48px;
+    width:48px;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid rgba(201,162,39,0.4);
+  }
+  .imgPreviewBar span{
+    font-size:13px;
+    color:var(--turquoise-light);
+    flex:1;
+  }
+  .imgPreviewBar button{
+    background:transparent;
+    border:none;
+    color:var(--gold-soft);
+    cursor:pointer;
+    font-size:14px;
+  }
   .messages::-webkit-scrollbar{width:8px;}
   .messages::-webkit-scrollbar-thumb{background:rgba(201,162,39,0.35);border-radius:4px;}
 </style>
@@ -149,7 +195,15 @@
   <div class="messages" id="messages">
     <div class="empty" id="emptyState">Xabar yozing va suhbatni boshlang</div>
   </div>
+  <div class="imgPreviewBar" id="imgPreviewBar">
+    <img id="imgPreviewThumb" src="" alt="">
+    <span>Rasm biriktirildi</span>
+    <button id="imgRemoveBtn">✕ olib tashlash</button>
+  </div>
   <div class="composer">
+    <input type="file" id="imgInput" accept="image/*" style="display:none;">
+    <button id="imgBtn" class="iconBtn" title="Rasm biriktirish">📷</button>
+    <button id="micBtn" class="iconBtn" title="Ovozli xabar">🎤</button>
     <textarea id="input" placeholder="Xabaringizni yozing..." rows="1"></textarea>
     <button id="sendBtn">Yuborish</button>
     <button id="clearBtn" title="Suhbatni tozalash" style="background:transparent;border:1px solid rgba(201,162,39,0.4);color:var(--gold-soft);">Tozalash</button>
@@ -161,10 +215,16 @@
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
   const emptyState = document.getElementById('emptyState');
+  const imgInput = document.getElementById('imgInput');
+  const imgBtn = document.getElementById('imgBtn');
+  const micBtn = document.getElementById('micBtn');
+  const imgPreviewBar = document.getElementById('imgPreviewBar');
+  const imgPreviewThumb = document.getElementById('imgPreviewThumb');
+  const imgRemoveBtn = document.getElementById('imgRemoveBtn');
   let history = [];
   let sending = false;
+  let pendingImage = null;
 
-  // Backend server manzilini shu yerga qo'ying (Render/Railway'ga joylashtirgach)
   const BACKEND_URL = 'https://sardor-saydurasulov-bot.onrender.com/chat';
 
   function autoGrow(){
@@ -173,25 +233,104 @@
   }
   inputEl.addEventListener('input', autoGrow);
 
-  function addMessage(role, text){
+  function addMessage(role, text, imageUrl){
     if(emptyState) emptyState.remove();
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-    div.textContent = text;
+    if(text) div.appendChild(document.createTextNode(text));
+    if(imageUrl){
+      const img = document.createElement('img');
+      img.src = imageUrl;
+      div.appendChild(img);
+    }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
   }
 
+  imgBtn.addEventListener('click', () => imgInput.click());
+  imgInput.addEventListener('change', () => {
+    const file = imgInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const base64 = dataUrl.split(',')[1];
+      pendingImage = { mimeType: file.type, data: base64, previewUrl: dataUrl };
+      imgPreviewThumb.src = dataUrl;
+      imgPreviewBar.classList.add('show');
+    };
+    reader.readAsDataURL(file);
+  });
+  imgRemoveBtn.addEventListener('click', () => {
+    pendingImage = null;
+    imgInput.value = '';
+    imgPreviewBar.classList.remove('show');
+  });
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let listening = false;
+  if(SpeechRecognition){
+    recognition = new SpeechRecognition();
+    recognition.lang = 'uz-UZ';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + transcript;
+      autoGrow();
+    };
+    recognition.onend = () => {
+      listening = false;
+      micBtn.classList.remove('active');
+    };
+    recognition.onerror = () => {
+      listening = false;
+      micBtn.classList.remove('active');
+    };
+  }
+  micBtn.addEventListener('click', () => {
+    if(!recognition){
+      alert("Kechirasiz, bu brauzer ovozli kiritishni qo'llab-quvvatlamaydi.");
+      return;
+    }
+    if(listening){
+      recognition.stop();
+      listening = false;
+      micBtn.classList.remove('active');
+    } else {
+      recognition.start();
+      listening = true;
+      micBtn.classList.add('active');
+    }
+  });
+
+  function speak(text){
+    if(!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'uz-UZ';
+    utter.rate = 1;
+    window.speechSynthesis.speak(utter);
+  }
+
   async function sendMessage(){
     const text = inputEl.value.trim();
-    if(!text || sending) return;
+    if((!text && !pendingImage) || sending) return;
     sending = true;
     sendBtn.disabled = true;
     inputEl.value = '';
     autoGrow();
-    addMessage('user', text);
-    history.push({role:'user', content: text});
+
+    const imageToSend = pendingImage;
+    addMessage('user', text, imageToSend ? imageToSend.previewUrl : null);
+    const historyEntry = { role: 'user', content: text };
+    if(imageToSend) historyEntry.image = { mimeType: imageToSend.mimeType, data: imageToSend.data };
+    history.push(historyEntry);
+    pendingImage = null;
+    imgInput.value = '';
+    imgPreviewBar.classList.remove('show');
 
     const typingEl = addMessage('bot', 'yozmoqda...');
     typingEl.classList.add('typing');
@@ -215,6 +354,7 @@
       typingEl.classList.remove('typing');
       typingEl.textContent = replyText;
       history.push({role:'assistant', content: replyText});
+      speak(replyText);
     }catch(err){
       typingEl.classList.remove('typing');
       typingEl.textContent = "Internetga ulanishda muammo bo'ldi. Wi-Fi yoki internetni tekshiring.";
