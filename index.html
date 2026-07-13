@@ -9,8 +9,11 @@
 <meta property="og:title" content="Sardor AI — chatbot">
 <meta property="og:description" content="Sizga o'xshagan sun'iy intellekt — savol bering, suhbatlashing.">
 <meta name="robots" content="index, follow">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <style>
   :root{
     --lapis: #16213e;
@@ -188,6 +191,34 @@
   }
   .messages::-webkit-scrollbar{width:8px;}
   .messages::-webkit-scrollbar-thumb{background:rgba(201,162,39,0.35);border-radius:4px;}
+  .codeWrap{
+    position:relative;
+    margin:10px 0;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid rgba(201,162,39,0.3);
+  }
+  .codeWrap pre{
+    margin:0;
+    padding:14px 16px;
+    overflow-x:auto;
+    font-size:13px;
+    background:#0d1526 !important;
+  }
+  .codeCopyBtn{
+    position:absolute;
+    top:6px;
+    right:6px;
+    background:rgba(201,162,39,0.25);
+    border:1px solid rgba(201,162,39,0.5);
+    color:var(--gold-soft);
+    font-size:11px;
+    padding:4px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:'Manrope',sans-serif;
+  }
+  .codeCopyBtn:hover{background:rgba(201,162,39,0.4);}
 </style>
 </head>
 <body>
@@ -239,11 +270,49 @@
   }
   inputEl.addEventListener('input', () => { lastInputWasVoice = false; autoGrow(); });
 
+  function renderMessageContent(container, text){
+    const parts = text.split(/```(\w*)\n?([\s\S]*?)```/g);
+    for(let i = 0; i < parts.length; i += 3){
+      const plain = parts[i];
+      if(plain) container.appendChild(document.createTextNode(plain));
+      const lang = parts[i+1];
+      const code = parts[i+2];
+      if(code !== undefined){
+        const wrap = document.createElement('div');
+        wrap.className = 'codeWrap';
+        const btn = document.createElement('button');
+        btn.className = 'codeCopyBtn';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(code.trim()).then(() => {
+            btn.textContent = 'Nusxalandi!';
+            setTimeout(() => btn.textContent = 'Copy', 1500);
+          });
+        });
+        const pre = document.createElement('pre');
+        const codeEl = document.createElement('code');
+        if(lang) codeEl.className = 'language-' + lang;
+        codeEl.textContent = code.trim();
+        pre.appendChild(codeEl);
+        wrap.appendChild(btn);
+        wrap.appendChild(pre);
+        container.appendChild(wrap);
+        if(window.hljs) window.hljs.highlightElement(codeEl);
+      }
+    }
+  }
+
   function addMessage(role, text, imageUrl){
     if(emptyState) emptyState.remove();
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
-    if(text) div.appendChild(document.createTextNode(text));
+    if(text){
+      if(role === 'bot' && text.includes('```')){
+        renderMessageContent(div, text);
+      } else {
+        div.appendChild(document.createTextNode(text));
+      }
+    }
     if(imageUrl){
       const img = document.createElement('img');
       img.src = imageUrl;
@@ -373,7 +442,12 @@
       const textBlock = (data.content || []).find(b => b.type === 'text');
       const replyText = textBlock ? textBlock.text : "Kechirasiz, javob ololmadim.";
       typingEl.classList.remove('typing');
-      typingEl.textContent = replyText;
+      typingEl.textContent = '';
+      if(replyText.includes('```')){
+        renderMessageContent(typingEl, replyText);
+      } else {
+        typingEl.textContent = replyText;
+      }
       history.push({role:'assistant', content: replyText});
       if(lastInputWasVoice) speak(replyText);
       lastInputWasVoice = false;
