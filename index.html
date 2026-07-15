@@ -209,7 +209,7 @@
     height:12px;
     width:100%;
     background-image: repeating-linear-gradient(135deg, var(--gold) 0 2px, transparent 2px 12px),
-                       repeating-linear-gradient(45deg, var(--turquoise) 0 2px, transparent 2px 12px);
+                      repeating-linear-gradient(45deg, var(--turquoise) 0 2px, transparent 2px 12px);
     opacity:0.5;
     flex-shrink:0;
   }
@@ -516,6 +516,7 @@
   let sending = false;
   let pendingImages = []; // [{ mimeType, data, name, previewUrl }]
   let pendingFile = null; // { kind:'file'|'text', mimeType, data, name }
+  let pendingAttachment = null; 
   let lastInputWasVoice = false;
 
   function loadChats(){
@@ -714,7 +715,6 @@
   }
   inputEl.addEventListener('input', () => { lastInputWasVoice = false; autoGrow(); });
 
-  // ---- Image attach (bir nechtasi, + Ctrl+V paste) ----
   const imgInput = document.getElementById('imgInput');
   const imgBtn = document.getElementById('imgBtn');
   const MAX_IMAGES = 6;
@@ -741,7 +741,6 @@
     imgInput.value = '';
   });
 
-  // Ctrl+V orqali clipboard'dan rasm joylashtirish
   document.addEventListener('paste', (e) => {
     const items = e.clipboardData && e.clipboardData.items;
     if(!items) return;
@@ -755,7 +754,6 @@
     if(found) e.preventDefault();
   });
 
-  // ---- File attach (pdf/txt/md/csv) ----
   const fileInput = document.getElementById('fileInput');
   const fileBtn = document.getElementById('fileBtn');
   fileBtn.addEventListener('click', () => fileInput.click());
@@ -882,6 +880,8 @@
   // ---------------- Send ----------------
   async function sendMessage(){
     const text = inputEl.value.trim();
+    const pendingAttachment = (pendingImages.length > 0) ? { kind: 'image', ...pendingImages[0] } : pendingFile;
+
     if((!text && !pendingAttachment) || sending) return;
     sending = true;
     sendBtn.disabled = true;
