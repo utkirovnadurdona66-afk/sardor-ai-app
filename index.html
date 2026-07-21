@@ -538,6 +538,16 @@
     color:var(--gold-soft) !important;
     font-size:17px !important;
   }
+  .iconBtn.recording{
+    background: var(--danger) !important;
+    color: #fff !important;
+    animation: pulseMic 1.2s infinite;
+  }
+  @keyframes pulseMic{
+    0%{ transform: scale(1); }
+    50%{ transform: scale(1.08); }
+    100%{ transform: scale(1); }
+  }
   .composerFooter{
     display:flex;
     justify-content:space-between;
@@ -745,7 +755,7 @@
       <input type="file" id="fileInput" accept=".pdf,.txt,.md,.csv" style="display:none;">
       <button id="imgBtn" class="iconBtn" title="Rasm biriktirish">📷</button>
       <button id="fileBtn" class="iconBtn" title="Fayl biriktirish (PDF, TXT)">📎</button>
-      <button id="micBtn" class="iconBtn" title="Ovozli xabar">🎤</button>
+      <button id="micBtn" class="iconBtn" title="Ovozli xabar gapirish">🎤</button>
       <textarea id="input" placeholder="Xabaringizni yozing... (Ctrl+/ bilan bu yerga sakrang)" rows="1"></textarea>
       <button id="sendBtn">Yuborish</button>
       <button id="clearBtn" title="Bu suhbatni tozalash" style="background:transparent;border:1px solid rgba(201,162,39,0.4);color:var(--gold-soft);">Tozalash</button>
@@ -776,6 +786,12 @@
   let pendingFile = null;
   let abortController = null;
   let searchQuery = '';
+
+  // Speech Recognition & Synthesis Global Vars
+  let recognition = null;
+  let isRecording = false;
+  let currentUtterance = null;
+  let speakingMsgId = null;
 
   function loadChats(){
     try{
@@ -918,6 +934,7 @@
   function switchChat(id){
     if(id === activeId) return;
     if(sending) stopGenerating();
+    stopSpeech();
     if(chats[activeId]) chats[activeId].draft = inputEl.value;
     activeId = id;
     persist();
@@ -942,6 +959,7 @@
 
   document.getElementById('newChatBtn').addEventListener('click', () => {
     if(sending) stopGenerating();
+    stopSpeech();
     if(chats[activeId]) chats[activeId].draft = inputEl.value;
     createChat();
     renderChatList();
@@ -1121,6 +1139,7 @@
 
     for(let i=0; i<chat.messages.length; i++){
       const m = chat.messages[i];
+      const msgId = 'msg_' + i;
       const row = document.createElement('div');
       row.className = 'msgRow ' + (m.role === 'user' ? 'user' : 'bot');
 
@@ -1175,7 +1194,15 @@
           navigator.clipboard.writeText(m.content || '').then(() => showToast("Nusxalandi ✓"));
         });
 
+        const speakBtn = document.createElement('button');
+        speakBtn.id = 'speakBtn_' + msgId;
+        speakBtn.textContent = (speakingMsgId === msgId) ? '⏹ To\'xtatish' : '🔊 Ovozli o\'qish';
+        speakBtn.addEventListener('click', () => {
+          toggleSpeech(m.content || '', msgId);
+        });
+
         actions.appendChild(copyBtn);
+        actions.appendChild(speakBtn);
         row.appendChild(actions);
       }
 
@@ -1184,6 +1211,121 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // ---------------- Ovozli o'qish (Speech Synthesis / TTS) ----------------
+  function toggleSpeech(text, msgId){
+    if('speechSynthesis' in window){
+      if(window.speechSynthesis.speaking && speakingMsgId === msgId){
+        stopSpeech();
+        return;
+      }
+
+      stopSpeech();
+
+      // Kod bloklarini hamda belgilarni o'qishda tashlab o'tish uchun tozalash
+      let cleanText = text.replace(/```[\s\S]*?```/g, 'Kod bloki.').replace(/[*_#`]/g, '');
+      if(!cleanText.trim()) return;
+
+      currentUtterance = new SpeechSynthesisUtterance(cleanText);
+      currentUtterance.lang = 'uz-UZ'; // O'zbek tili
+      currentUtterance.rate = 1.0;
+
+      currentUtterance.onend = () => {
+        speakingMsgId = null;
+        renderMessages();
+      };
+      currentUtterance.onerror = () => {
+        speakingMsgId = null;
+        renderMessages();
+      };
+
+      speakingMsgId = msgId;
+      window.speechSynthesis.speak(currentUtterance);
+      renderMessages();
+    } else {
+      showToast("Brauzeringiz ovozli o'qishni qo'llab-quvvatlamaydi");
+    }
+  }
+
+  function stopSpeech(){
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel();
+    }
+    speakingMsgId = null;
+  }
+
+  // ---------------- Ovozni eshitish (Speech Recognition / STT) ----------------
+  const micBtn = document.getElementById('micBtn');
+
+  function initSpeechRecognition(){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SpeechRecognition){
+      micBtn.style.display = 'none'; // Brauzerda ovoz kiritish qo'llanmasa yashiriladi
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'uz-UZ'; // O'zbekcha nutqni aniqlash
+
+    recognition.onstart = () => {
+      isRecording = true;
+      micBtn.classList.add('recording');
+      micBtn.title = "Eshitilmoqda... To'xtatish uchun bosing";
+      showToast("Eshitilmoqda... Gapiring!");
+    };
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for(let i = event.resultIndex; i < event.results.length; i++){
+        transcript += event.results[i][0].transcript;
+      }
+      inputEl.value = transcript;
+      autoGrow();
+      updateCharCounter();
+    };
+
+    recognition.onerror = (event) => {
+      console.warn("Nutqni aniqlashda xato:", event.error);
+      stopRecording();
+      if(event.error === 'not-allowed'){
+        showToast("Mikrofon uchun ruxsat berilmagan!");
+      }
+    };
+
+    recognition.onend = () => {
+      stopRecording();
+    };
+  }
+
+  function stopRecording(){
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    micBtn.title = "Ovozli xabar gapirish";
+    if(recognition){
+      try { recognition.stop(); } catch(e){}
+    }
+  }
+
+  micBtn.addEventListener('click', () => {
+    if(!recognition){
+      showToast("Brauzeringiz ovozli kirishni qo'llab-quvvatlamaydi");
+      return;
+    }
+    if(isRecording){
+      stopRecording();
+    } else {
+      try {
+        recognition.start();
+      } catch(e) {
+        stopRecording();
+      }
+    }
+  });
+
+  initSpeechRecognition();
+
+  // ---------------- Generator & Network ----------------
   function stopGenerating(){
     if(abortController){
       abortController.abort();
@@ -1202,6 +1344,9 @@
       stopGenerating();
       return;
     }
+
+    stopSpeech();
+    if(isRecording) stopRecording();
 
     const chat = chats[activeId];
     if(!chat) return;
@@ -1302,6 +1447,7 @@
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     if(confirm("Bu suhbatdagi barcha xabarlarni o'chirib tashlamoqchimisiz?")){
+      stopSpeech();
       chats[activeId].messages = [];
       persist();
       renderMessages();
