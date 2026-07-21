@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1526">
 <title>Sardor AI — chatbot</title>
-<meta name="description" content="Sardor AI — Saydurasulov Sardor tomonidan yaratilgan bepul o'zbekcha sun'iy intellekt chatbot. Savol bering, suhbatlashing, rasm chizdiring, fayl yuboring, ovozli gaplashing.">
+<meta name="description" content="Sardor AI — Saydurasulov Sardor tomonidan yaratilgan bepul o'zbekcha sun'iy intellekt chatbot. Savol bering, suhbatlashing, rasm chizdiring, qo'shiq yozdiring, fayl yuboring, ovozli gaplashing.">
 <meta name="keywords" content="Sardor AI, Sardor ai chatbot, sun'iy intellekt, o'zbek chatbot, Saydurasulov Sardor">
 <meta property="og:title" content="Sardor AI — chatbot">
 <meta property="og:description" content="Sizga o'xshagan sun'iy intellekt — savol bering, suhbatlashing, rasm chizdiring.">
@@ -27,6 +28,15 @@
     --cream-dim: #e9dfc4;
     --ink: #1c1c1a;
     --danger: #c9573f;
+    --bubble-bot-bg: rgba(245,238,220,0.08);
+  }
+  body.light{
+    --lapis: #f6f2e6;
+    --lapis-dark: #ffffff;
+    --lapis-deeper: #ece5d1;
+    --cream: #241f10;
+    --cream-dim: #4a4330;
+    --bubble-bot-bg: rgba(22,33,62,0.05);
   }
   *{box-sizing:border-box;}
   html,body{
@@ -35,6 +45,7 @@
     font-family:'Manrope',sans-serif;
     color:var(--cream);
     overflow:hidden;
+    transition: background 0.25s, color 0.25s;
   }
   .shell{
     display:flex;
@@ -48,10 +59,10 @@
     width:270px;
     flex-shrink:0;
     background: var(--lapis-deeper);
-    border-right:1px solid rgba(230,200,105,0.18);
+    border-right:1px solid rgba(201,162,39,0.18);
     display:flex;
     flex-direction:column;
-    transition: margin-left 0.28s ease;
+    transition: margin-left 0.28s ease, background 0.25s;
   }
   .sidebar.collapsed{ margin-left:-270px; }
   .sidebarTop{
@@ -60,9 +71,11 @@
   .brandRow{
     display:flex;
     align-items:baseline;
+    justify-content:space-between;
     gap:8px;
     margin-bottom:14px;
   }
+  .brandRow .brandNames{ display:flex; align-items:baseline; gap:8px; }
   .brandRow h1{
     font-family:'Cormorant Garamond', serif;
     font-weight:700;
@@ -75,6 +88,30 @@
     color:var(--turquoise-light);
     opacity:0.8;
   }
+  .themeToggle{
+    background:transparent;
+    border:1px solid rgba(201,162,39,0.4);
+    color:var(--gold-soft);
+    border-radius:8px;
+    width:30px;
+    height:30px;
+    cursor:pointer;
+    font-size:14px;
+    flex-shrink:0;
+  }
+  .searchBox{
+    width:100%;
+    padding:8px 10px;
+    border-radius:9px;
+    border:1px solid rgba(201,162,39,0.3);
+    background:rgba(245,238,220,0.05);
+    color:var(--cream);
+    font-family:'Manrope',sans-serif;
+    font-size:12.5px;
+    outline:none;
+    margin-bottom:10px;
+  }
+  .searchBox::placeholder{ color:rgba(245,238,220,0.4); }
   .newChatBtn{
     width:100%;
     padding:11px 14px;
@@ -97,7 +134,7 @@
   .chatList{
     flex:1;
     overflow-y:auto;
-    padding:6px 10px 12px;
+    padding:10px 10px 12px;
     display:flex;
     flex-direction:column;
     gap:3px;
@@ -117,12 +154,17 @@
     transition: background 0.15s;
     position:relative;
   }
-  .chatItem:hover{ background:rgba(245,238,220,0.06); }
+  .chatItem:hover{ background:rgba(128,128,128,0.08); }
   .chatItem.active{
     background:rgba(46,158,150,0.18);
     color:var(--cream);
     border:1px solid rgba(46,158,150,0.35);
   }
+  .chatItem .pin{
+    background:transparent;border:none;cursor:pointer;font-size:12px;
+    opacity:0.5; flex-shrink:0; color:var(--gold-soft);
+  }
+  .chatItem .pin.pinned{ opacity:1; }
   .chatItem .title{ flex:1; overflow:hidden; text-overflow:ellipsis; }
   .chatItem .delBtn{
     opacity:0;
@@ -139,8 +181,22 @@
   .sidebarFooter{
     padding:12px 16px 16px;
     font-size:11px;
-    color:rgba(245,238,220,0.35);
-    border-top:1px solid rgba(230,200,105,0.12);
+    color:rgba(128,128,128,0.6);
+    border-top:1px solid rgba(201,162,39,0.12);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+  }
+  .sidebarFooter button{
+    background:transparent;
+    border:1px solid rgba(201,162,39,0.3);
+    color:var(--turquoise-light);
+    font-size:10.5px;
+    padding:4px 8px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:'Manrope',sans-serif;
   }
 
   /* ---------- Main ---------- */
@@ -150,11 +206,13 @@
     display:flex;
     flex-direction:column;
     background: var(--lapis);
+    position:relative;
+    transition: background 0.25s;
   }
   .header{
     padding:18px 26px 14px;
     background: linear-gradient(180deg, var(--lapis-dark), var(--lapis));
-    border-bottom:1px solid rgba(230,200,105,0.25);
+    border-bottom:1px solid rgba(201,162,39,0.25);
     display:flex;
     align-items:center;
     gap:14px;
@@ -179,7 +237,7 @@
     0%,100%{ opacity:0.5; r:2.2; }
     50%{ opacity:1; r:3.2; }
   }
-  .headerTitle{ position:relative; z-index:1; flex:1; }
+  .headerTitle{ position:relative; z-index:1; flex:1; min-width:0; }
   .menuToggle{
     background:transparent;
     border:1px solid rgba(201,162,39,0.4);
@@ -191,6 +249,19 @@
     font-size:16px;
     flex-shrink:0;
   }
+  .headerActions{ display:flex; gap:8px; position:relative; z-index:1; flex-shrink:0; }
+  .headerActions button{
+    background:transparent;
+    border:1px solid rgba(201,162,39,0.4);
+    color:var(--gold-soft);
+    border-radius:8px;
+    height:36px;
+    padding:0 11px;
+    cursor:pointer;
+    font-size:13px;
+    font-family:'Manrope',sans-serif;
+  }
+  .headerActions button:hover{ background:rgba(201,162,39,0.15); }
   .headerTitle h2{
     font-family:'Cormorant Garamond', serif;
     font-weight:700;
@@ -198,6 +269,9 @@
     margin:0;
     color:var(--cream);
     letter-spacing:0.4px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
   .headerTitle p{
     margin:2px 0 0;
@@ -233,12 +307,26 @@
     padding:24px 28px;
     display:flex;
     flex-direction:column;
-    gap:16px;
+    gap:4px;
+    position:relative;
+  }
+  .messages.dragOver{
+    outline: 2px dashed var(--turquoise);
+    outline-offset:-8px;
+    background: rgba(46,158,150,0.06);
   }
   @keyframes riseIn{
     from{ opacity:0; transform:translateY(10px); }
     to{ opacity:1; transform:translateY(0); }
   }
+  .msgRow{
+    display:flex;
+    flex-direction:column;
+    margin-bottom:12px;
+    animation: riseIn 0.28s ease;
+  }
+  .msgRow.user{ align-items:flex-end; }
+  .msgRow.bot{ align-items:flex-start; }
   .msg{
     max-width:82%;
     padding:12px 16px;
@@ -246,17 +334,14 @@
     line-height:1.55;
     font-size:15px;
     white-space:pre-wrap;
-    animation: riseIn 0.28s ease;
   }
   .msg.user{
-    align-self:flex-end;
     background:var(--turquoise);
     color:var(--lapis-dark);
     border-bottom-right-radius:3px;
   }
   .msg.bot{
-    align-self:flex-start;
-    background:rgba(245,238,220,0.08);
+    background:var(--bubble-bot-bg);
     border:1px solid rgba(201,162,39,0.3);
     color:var(--cream);
     border-bottom-left-radius:3px;
@@ -277,6 +362,15 @@
   @keyframes bounce{
     0%,80%,100%{ transform:translateY(0); opacity:0.5; }
     40%{ transform:translateY(-5px); opacity:1; }
+  }
+  .msgMeta{
+    font-size:10.5px;
+    color:rgba(128,128,128,0.7);
+    margin-top:3px;
+    padding:0 4px;
+    display:flex;
+    gap:6px;
+    align-items:center;
   }
   .fileChip{
     display:inline-flex;
@@ -314,10 +408,11 @@
   }
   .msgActions{
     display:flex;
-    gap:8px;
+    gap:6px;
     margin-top:9px;
+    flex-wrap:wrap;
   }
-  .msgActions button{
+  .msgActions button, .msgActions a{
     background:transparent;
     border:1px solid rgba(201,162,39,0.3);
     color:var(--turquoise-light);
@@ -326,9 +421,10 @@
     border-radius:7px;
     cursor:pointer;
     font-family:'Manrope',sans-serif;
-    transition: background 0.15s;
+    text-decoration:none;
   }
-  .msgActions button:hover{ background:rgba(201,162,39,0.15); }
+  .msgActions button:hover, .msgActions a:hover{ background:rgba(201,162,39,0.15); }
+  .msgActions button.reacted{ background:rgba(46,158,150,0.25); border-color:var(--turquoise); }
   .empty{
     margin:auto;
     text-align:center;
@@ -355,12 +451,29 @@
     font-family:'Manrope',sans-serif;
   }
   .suggestRow button:hover{ background:rgba(46,158,150,0.22); }
+  .scrollDownBtn{
+    position:absolute;
+    bottom:14px;
+    right:20px;
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:var(--gold);
+    color:var(--lapis-dark);
+    border:none;
+    font-size:16px;
+    cursor:pointer;
+    box-shadow:0 3px 10px rgba(0,0,0,0.3);
+    display:none;
+    z-index:5;
+  }
+  .scrollDownBtn.show{ display:block; }
   .composer{
     display:flex;
     gap:9px;
-    padding:14px 26px 20px;
+    padding:10px 26px 10px;
     background:var(--lapis-dark);
-    border-top:1px solid rgba(230,200,105,0.25);
+    border-top:1px solid rgba(201,162,39,0.25);
     align-items:flex-end;
   }
   .composer textarea{
@@ -371,14 +484,14 @@
     padding:12px 14px;
     border-radius:12px;
     border:1px solid rgba(201,162,39,0.4);
-    background:rgba(245,238,220,0.06);
+    background:rgba(128,128,128,0.06);
     color:var(--cream);
     font-family:'Manrope',sans-serif;
     font-size:15px;
     outline:none;
     transition:border-color 0.15s;
   }
-  .composer textarea::placeholder{color:rgba(245,238,220,0.4);}
+  .composer textarea::placeholder{color:rgba(128,128,128,0.6);}
   .composer textarea:focus{border-color:var(--gold-soft);}
   .composer button{
     padding:0 20px;
@@ -413,6 +526,13 @@
     color:var(--lapis-dark) !important;
     border-color:var(--turquoise) !important;
   }
+  .composerFooter{
+    display:flex;
+    justify-content:space-between;
+    padding:0 26px 12px;
+    font-size:10.5px;
+    color:rgba(128,128,128,0.55);
+  }
   .msg img{
     max-width:100%;
     border-radius:10px;
@@ -425,7 +545,7 @@
     gap:10px;
     padding:8px 26px;
     background:var(--lapis-dark);
-    border-top:1px solid rgba(230,200,105,0.15);
+    border-top:1px solid rgba(201,162,39,0.15);
     animation: riseIn 0.2s ease;
     flex-wrap:wrap;
   }
@@ -511,6 +631,23 @@
     font-family:'Manrope',sans-serif;
   }
   .codeCopyBtn:hover{background:rgba(201,162,39,0.4);}
+  .toast{
+    position:fixed;
+    bottom:80px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--lapis-dark);
+    border:1px solid rgba(201,162,39,0.5);
+    color:var(--cream);
+    padding:9px 18px;
+    border-radius:20px;
+    font-size:13px;
+    z-index:50;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.25s, transform 0.25s;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
 
   @media (max-width: 720px){
     .sidebar{
@@ -523,6 +660,7 @@
     .sidebar:not(.collapsed){ margin-left:0; }
     .headerTitle h2{ font-size:20px; }
     .msg{ max-width:90%; }
+    .headerActions button span.lbl{ display:none; }
   }
 </style>
 </head>
@@ -532,13 +670,20 @@
   <div class="sidebar" id="sidebar">
     <div class="sidebarTop">
       <div class="brandRow">
-        <h1>Sardor AI</h1>
-        <span>suhbatlar</span>
+        <div class="brandNames">
+          <h1>Sardor AI</h1>
+          <span>suhbatlar</span>
+        </div>
+        <button class="themeToggle" id="themeToggle" title="Mavzuni almashtirish">🌙</button>
       </div>
-      <button class="newChatBtn" id="newChatBtn">+ Yangi suhbat</button>
+      <input type="text" class="searchBox" id="searchBox" placeholder="🔍 Suhbatlarni qidirish...">
+      <button class="newChatBtn" id="newChatBtn">+ Yangi suhbat <span style="opacity:.55;font-weight:400;">(Ctrl+K)</span></button>
     </div>
     <div class="chatList" id="chatList"></div>
-    <div class="sidebarFooter">Saydurasulov Sardor tomonidan yaratilgan</div>
+    <div class="sidebarFooter">
+      <span>Saydurasulov Sardor</span>
+      <button id="exportAllBtn" title="Barcha suhbatlarni .txt qilib yuklab olish">⬇ Export</button>
+    </div>
   </div>
 
   <div class="app">
@@ -559,6 +704,10 @@
         <h2 id="chatTitle">Sardor AI</h2>
         <p><span class="onlineDot"></span> Onlayn — javob berishga tayyor</p>
       </div>
+      <div class="headerActions">
+        <button id="renameBtn" title="Suhbat nomini o'zgartirish">✏️ <span class="lbl">Nomlash</span></button>
+        <button id="shareBtn" title="Suhbatni nusxalash">🔗 <span class="lbl">Ulashish</span></button>
+      </div>
     </div>
     <div class="girih"></div>
     <div class="messages" id="messages">
@@ -569,8 +718,10 @@
           <button data-q="Menga qiziqarli bir fakt ayt">✨ Qiziqarli fakt</button>
           <button data-q="Python'da 'salom dunyo' deb chiqaradigan kod yoz">💻 Kod yozdir</button>
           <button data-q="Rasm chiz: tog'lar orasidagi quyosh botishi, sokin ko'l aks etgan holda">🎨 Rasm chizdir</button>
+          <button data-q="Do'stlik haqida qisqa qo'shiq matni yoz">🎤 Qo'shiq yozdir</button>
         </div>
       </div>
+      <button class="scrollDownBtn" id="scrollDownBtn" title="Pastga tushish">⬇</button>
     </div>
     <div class="attachBar" id="attachBar">
       <div id="attachPreviewSlot"></div>
@@ -583,17 +734,23 @@
       <button id="imgBtn" class="iconBtn" title="Rasm biriktirish">📷</button>
       <button id="fileBtn" class="iconBtn" title="Fayl biriktirish (PDF, TXT)">📎</button>
       <button id="micBtn" class="iconBtn" title="Ovozli xabar">🎤</button>
-      <textarea id="input" placeholder="Xabaringizni yozing... (rasm chizdirish uchun 'rasm chiz' deb yozing)" rows="1"></textarea>
+      <textarea id="input" placeholder="Xabaringizni yozing... (Ctrl+/ bilan bu yerga sakrang)" rows="1"></textarea>
       <button id="sendBtn">Yuborish</button>
       <button id="clearBtn" title="Bu suhbatni tozalash" style="background:transparent;border:1px solid rgba(201,162,39,0.4);color:var(--gold-soft);">Tozalash</button>
     </div>
+    <div class="composerFooter">
+      <span id="charCounter">0 belgi</span>
+      <span>Enter — yuborish · Shift+Enter — yangi qator</span>
+    </div>
   </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
   // ---------------- State & storage ----------------
   const STORAGE_KEY = 'sardorAI_chats_v2';
   const ACTIVE_KEY = 'sardorAI_activeChat_v2';
+  const THEME_KEY = 'sardorAI_theme_v1';
   const BACKEND_BASE = 'https://sardor-saydurasulov-bot.onrender.com';
   const CHAT_URL = BACKEND_BASE + '/chat';
   const IMAGE_URL = BACKEND_BASE + '/generate-image';
@@ -607,6 +764,7 @@
   let pendingFile = null;
   let lastInputWasVoice = false;
   let abortController = null;
+  let searchQuery = '';
 
   function loadChats(){
     try{
@@ -634,11 +792,49 @@
 
   function createChat(){
     const id = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    chats[id] = { id, title: 'Yangi suhbat', messages: [] };
+    chats[id] = { id, title: 'Yangi suhbat', messages: [], pinned: false, draft: '' };
     activeId = id;
     persist();
     return id;
   }
+
+  function showToast(text){
+    const t = document.getElementById('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(showToast._tm);
+    showToast._tm = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  function timeNow(){
+    return new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function greetingByHour(){
+    const h = new Date().getHours();
+    if(h < 6) return "Tungi tinchlik 🌙 Nima haqida gaplashamiz?";
+    if(h < 11) return "Xayrli tong! ☀️ Bugun sizga qanday yordam bera olaman?";
+    if(h < 17) return "Assalomu alaykum! 👋 Nima haqida gaplashamiz?";
+    if(h < 22) return "Xayrli kech! 🌆 Sizni tinglayman.";
+    return "Kech bo'ldi, lekin men doim shu yerdaman 🌙 Nima kerak?";
+  }
+
+  // ---------------- Theme ----------------
+  const themeToggle = document.getElementById('themeToggle');
+  function applyTheme(theme){
+    document.body.classList.toggle('light', theme === 'light');
+    themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
+  }
+  function initTheme(){
+    const saved = localStorage.getItem(THEME_KEY) || 'dark';
+    applyTheme(saved);
+  }
+  themeToggle.addEventListener('click', () => {
+    const isLight = document.body.classList.contains('light');
+    const next = isLight ? 'dark' : 'light';
+    applyTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+  });
 
   // ---------------- Sidebar rendering ----------------
   const chatListEl = document.getElementById('chatList');
@@ -646,7 +842,14 @@
 
   function renderChatList(){
     chatListEl.innerHTML = '';
-    const ids = Object.keys(chats).sort((a,b) => {
+    let ids = Object.keys(chats);
+    if(searchQuery){
+      const q = searchQuery.toLowerCase();
+      ids = ids.filter(id => (chats[id].title || '').toLowerCase().includes(q));
+    }
+    ids.sort((a,b) => {
+      const ca = chats[a], cb = chats[b];
+      if(!!ca.pinned !== !!cb.pinned) return ca.pinned ? -1 : 1;
       const na = Number(a.split('_')[1]) || 0;
       const nb = Number(b.split('_')[1]) || 0;
       return nb - na;
@@ -655,9 +858,27 @@
       const chat = chats[id];
       const item = document.createElement('div');
       item.className = 'chatItem' + (id === activeId ? ' active' : '');
+
+      const pinBtn = document.createElement('button');
+      pinBtn.className = 'pin' + (chat.pinned ? ' pinned' : '');
+      pinBtn.textContent = '📌';
+      pinBtn.title = chat.pinned ? "Qadab qo'yishni bekor qilish" : "Qadab qo'yish";
+      pinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chat.pinned = !chat.pinned;
+        persist();
+        renderChatList();
+      });
+
       const titleSpan = document.createElement('span');
       titleSpan.className = 'title';
       titleSpan.textContent = chat.title || 'Yangi suhbat';
+      titleSpan.title = "Nomini o'zgartirish uchun ikki marta bosing";
+      titleSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        renameChat(id);
+      });
+
       const delBtn = document.createElement('button');
       delBtn.className = 'delBtn';
       delBtn.textContent = '✕';
@@ -666,6 +887,8 @@
         e.stopPropagation();
         deleteChat(id);
       });
+
+      item.appendChild(pinBtn);
       item.appendChild(titleSpan);
       item.appendChild(delBtn);
       item.addEventListener('click', () => switchChat(id));
@@ -673,13 +896,34 @@
     }
   }
 
+  function renameChat(id){
+    const chat = chats[id];
+    const name = prompt("Suhbat nomini kiriting:", chat.title || '');
+    if(name && name.trim()){
+      chat.title = name.trim().slice(0, 60);
+      persist();
+      renderChatList();
+      if(id === activeId) chatTitleEl.textContent = chat.title;
+    }
+  }
+  document.getElementById('renameBtn').addEventListener('click', () => renameChat(activeId));
+
+  document.getElementById('searchBox').addEventListener('input', (e) => {
+    searchQuery = e.target.value.trim();
+    renderChatList();
+  });
+
   function switchChat(id){
     if(id === activeId) return;
     if(sending) stopGenerating();
+    if(chats[activeId]) chats[activeId].draft = inputEl.value;
     activeId = id;
     persist();
     renderChatList();
     renderMessages();
+    inputEl.value = chats[activeId].draft || '';
+    autoGrow();
+    updateCharCounter();
     if(window.innerWidth <= 720) sidebar.classList.add('collapsed');
   }
 
@@ -696,11 +940,48 @@
 
   document.getElementById('newChatBtn').addEventListener('click', () => {
     if(sending) stopGenerating();
+    if(chats[activeId]) chats[activeId].draft = inputEl.value;
     createChat();
     renderChatList();
     renderMessages();
+    inputEl.value = '';
+    autoGrow();
+    updateCharCounter();
     if(window.innerWidth <= 720) sidebar.classList.add('collapsed');
   });
+
+  document.getElementById('exportAllBtn').addEventListener('click', () => {
+    let out = 'SARDOR AI — barcha suhbatlar\n\n';
+    for(const id of Object.keys(chats)){
+      const c = chats[id];
+      out += `=== ${c.title || 'Yangi suhbat'} ===\n`;
+      for(const m of c.messages){
+        out += `[${m.role === 'user' ? 'SIZ' : 'SARDOR AI'}]: ${m.content || ''}\n`;
+      }
+      out += '\n';
+    }
+    downloadText(out, 'sardor-ai-suhbatlar.txt');
+  });
+
+  document.getElementById('shareBtn').addEventListener('click', () => {
+    const chat = chats[activeId];
+    if(!chat || chat.messages.length === 0){ showToast("Suhbat bo'sh"); return; }
+    let out = '';
+    for(const m of chat.messages){
+      out += `${m.role === 'user' ? 'SIZ' : 'SARDOR AI'}: ${m.content || ''}\n\n`;
+    }
+    navigator.clipboard.writeText(out).then(() => showToast("Suhbat nusxalandi ✓"));
+  });
+
+  function downloadText(text, filename){
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   // ---------------- Sidebar toggle ----------------
   const sidebar = document.getElementById('sidebar');
@@ -709,19 +990,48 @@
   });
   if(window.innerWidth <= 720) sidebar.classList.add('collapsed');
 
-  // ---------------- Suggested questions ----------------
-  document.getElementById('suggestRow').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-q]');
-    if(!btn) return;
-    inputEl.value = btn.getAttribute('data-q');
-    autoGrow();
-    sendMessage();
+  // ---------------- Keyboard shortcuts ----------------
+  document.addEventListener('keydown', (e) => {
+    if(e.ctrlKey && e.key.toLowerCase() === 'k'){
+      e.preventDefault();
+      document.getElementById('newChatBtn').click();
+    } else if(e.ctrlKey && e.key === '/'){
+      e.preventDefault();
+      inputEl.focus();
+    }
   });
+
+  // ---------------- Suggested questions ----------------
+  function wireSuggestRow(el){
+    el.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-q]');
+      if(!btn) return;
+      inputEl.value = btn.getAttribute('data-q');
+      autoGrow();
+      updateCharCounter();
+      sendMessage();
+    });
+  }
+  wireSuggestRow(document.getElementById('suggestRow'));
 
   // ---------------- Message rendering ----------------
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
+  const scrollDownBtn = document.getElementById('scrollDownBtn');
+  const charCounter = document.getElementById('charCounter');
+
+  messagesEl.addEventListener('scroll', () => {
+    const distFromBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+    scrollDownBtn.classList.toggle('show', distFromBottom > 200);
+  });
+  scrollDownBtn.addEventListener('click', () => {
+    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: 'smooth' });
+  });
+
+  function updateCharCounter(){
+    charCounter.textContent = inputEl.value.length + ' belgi';
+  }
 
   function renderMessageContent(container, text){
     const parts = text.split(/```(\w*)\n?([\s\S]*?)```/g);
@@ -755,9 +1065,12 @@
     }
   }
 
-  // opts: { imageUrls: [], fileMeta: {name}, generatedImageUrl: string, showActions: bool, rawText }
+  // opts: { imageUrls, fileMeta, generatedImageUrl, showActions, rawText, time, reaction, onRegenerate, onEdit }
   function buildMessageEl(role, text, opts){
     opts = opts || {};
+    const row = document.createElement('div');
+    row.className = 'msgRow ' + (role === 'user' ? 'user' : 'bot');
+
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
     const textHolder = document.createElement('div');
@@ -794,34 +1107,88 @@
       chip.textContent = '📎 ' + opts.fileMeta.name;
       div.appendChild(chip);
     }
-    if(role === 'bot' && opts.showActions !== false && (text || opts.generatedImageUrl)){
+
+    if(opts.showActions !== false && (text || opts.generatedImageUrl)){
       const actions = document.createElement('div');
       actions.className = 'msgActions';
+
       const copyBtn = document.createElement('button');
-      copyBtn.textContent = '📋 Nusxalash';
+      copyBtn.textContent = '📋';
+      copyBtn.title = 'Nusxalash';
       copyBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(opts.rawText !== undefined ? opts.rawText : text).then(() => {
-          copyBtn.textContent = '✓ Nusxalandi';
-          setTimeout(() => copyBtn.textContent = '📋 Nusxalash', 1400);
+          showToast('Nusxalandi ✓');
         });
       });
       actions.appendChild(copyBtn);
+
+      if(role === 'bot' && text){
+        const speakBtn = document.createElement('button');
+        speakBtn.textContent = '🔊';
+        speakBtn.title = "Ovoz bilan o'qish";
+        speakBtn.addEventListener('click', () => speak(text));
+        actions.appendChild(speakBtn);
+      }
+
       if(opts.generatedImageUrl){
         const dlBtn = document.createElement('a');
-        dlBtn.textContent = '⬇ Yuklab olish';
+        dlBtn.textContent = '⬇';
+        dlBtn.title = 'Yuklab olish';
         dlBtn.href = opts.generatedImageUrl;
         dlBtn.download = 'sardor-ai-rasm.png';
-        dlBtn.style.cssText = 'background:transparent;border:1px solid rgba(201,162,39,0.3);color:var(--turquoise-light);font-size:11.5px;padding:3px 10px;border-radius:7px;cursor:pointer;text-decoration:none;font-family:Manrope,sans-serif;';
         actions.appendChild(dlBtn);
       }
+
+      if(role === 'bot' && opts.onRegenerate){
+        const regenBtn = document.createElement('button');
+        regenBtn.textContent = '🔄';
+        regenBtn.title = 'Qayta yaratish';
+        regenBtn.addEventListener('click', opts.onRegenerate);
+        actions.appendChild(regenBtn);
+      }
+      if(role === 'user' && opts.onEdit){
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✏️';
+        editBtn.title = "Tahrirlash va qayta yuborish";
+        editBtn.addEventListener('click', opts.onEdit);
+        actions.appendChild(editBtn);
+      }
+      if(role === 'bot'){
+        const upBtn = document.createElement('button');
+        upBtn.textContent = '👍';
+        upBtn.className = opts.reaction === 'up' ? 'reacted' : '';
+        upBtn.addEventListener('click', () => {
+          if(opts.onReact) opts.onReact(opts.reaction === 'up' ? null : 'up');
+        });
+        const downBtn = document.createElement('button');
+        downBtn.textContent = '👎';
+        downBtn.className = opts.reaction === 'down' ? 'reacted' : '';
+        downBtn.addEventListener('click', () => {
+          if(opts.onReact) opts.onReact(opts.reaction === 'down' ? null : 'down');
+        });
+        actions.appendChild(upBtn);
+        actions.appendChild(downBtn);
+      }
+
       div.appendChild(actions);
     }
-    div._textHolder = textHolder;
-    return div;
+
+    row.appendChild(div);
+
+    if(opts.time){
+      const meta = document.createElement('div');
+      meta.className = 'msgMeta';
+      meta.textContent = opts.time;
+      row.appendChild(meta);
+    }
+
+    row._textHolder = textHolder;
+    row._bubble = div;
+    return row;
   }
 
   function renderMessages(){
-    messagesEl.innerHTML = '';
+    messagesEl.querySelectorAll('.msgRow, .empty').forEach(el => el.remove());
     const chat = chats[activeId];
     chatTitleEl.textContent = chat && chat.title !== 'Yangi suhbat' ? chat.title : 'Sardor AI';
     if(!chat || chat.messages.length === 0){
@@ -833,33 +1200,32 @@
         '<button data-q="Menga qiziqarli bir fakt ayt">✨ Qiziqarli fakt</button>' +
         '<button data-q="Python\'da \'salom dunyo\' deb chiqaradigan kod yoz">💻 Kod yozdir</button>' +
         '<button data-q="Rasm chiz: tog\'lar orasidagi quyosh botishi, sokin ko\'l aks etgan holda">🎨 Rasm chizdir</button>' +
+        '<button data-q="Do\'stlik haqida qisqa qo\'shiq matni yoz">🎤 Qo\'shiq yozdir</button>' +
         '</div>';
-      messagesEl.appendChild(div);
-      div.querySelector('.suggestRow').addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-q]');
-        if(!btn) return;
-        inputEl.value = btn.getAttribute('data-q');
-        autoGrow();
-        sendMessage();
-      });
+      messagesEl.insertBefore(div, scrollDownBtn);
+      wireSuggestRow(div.querySelector('.suggestRow'));
       return;
     }
-    for(const m of chat.messages){
+    let lastUserIdx = -1;
+    chat.messages.forEach((m, i) => { if(m.role === 'user') lastUserIdx = i; });
+    chat.messages.forEach((m, idx) => {
       let imageUrls = [];
       if(Array.isArray(m.images)) imageUrls = m.images.map(i => i.previewUrl).filter(Boolean);
       else if(m.image && m.image.previewUrl) imageUrls = [m.image.previewUrl];
       const genUrl = m.generatedImage ? `data:${m.generatedImage.mimeType};base64,${m.generatedImage.data}` : null;
-      const el = buildMessageEl(
-        m.role === 'user' ? 'user' : 'bot',
-        m.content,
-        {
-          imageUrls,
-          fileMeta: m.file ? { name: m.file.name } : null,
-          generatedImageUrl: genUrl
-        }
-      );
-      messagesEl.appendChild(el);
-    }
+      const role = m.role === 'user' ? 'user' : 'bot';
+      const row = buildMessageEl(role, m.content, {
+        imageUrls,
+        fileMeta: m.file ? { name: m.file.name } : null,
+        generatedImageUrl: genUrl,
+        time: m.time || '',
+        reaction: m.reaction,
+        onReact: role === 'bot' ? (val) => { m.reaction = val; persist(); renderMessages(); } : null,
+        onRegenerate: (role === 'bot' && idx === chat.messages.length - 1) ? () => regenerateLast() : null,
+        onEdit: (role === 'user' && idx === lastUserIdx) ? () => editAndResend(idx) : null
+      });
+      messagesEl.insertBefore(row, scrollDownBtn);
+    });
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
@@ -869,12 +1235,46 @@
     }
   }
 
+  // ---------------- Regenerate / Edit ----------------
+  function regenerateLast(){
+    if(sending) return;
+    const chat = chats[activeId];
+    if(!chat || chat.messages.length === 0) return;
+    if(chat.messages[chat.messages.length - 1].role === 'assistant'){
+      chat.messages.pop();
+      persist();
+      renderMessages();
+    }
+    setSendingUI(true);
+    runChatStream(chat).finally(() => { setSendingUI(false); messagesEl.scrollTop = messagesEl.scrollHeight; });
+  }
+
+  function editAndResend(idx){
+    if(sending) return;
+    const chat = chats[activeId];
+    const msg = chat.messages[idx];
+    const newText = prompt("Xabarni tahrirlang:", msg.content || '');
+    if(newText === null) return;
+    chat.messages = chat.messages.slice(0, idx);
+    inputEl.value = newText;
+    persist();
+    renderMessages();
+    autoGrow();
+    updateCharCounter();
+    sendMessage();
+  }
+
   // ---------------- Composer ----------------
   function autoGrow(){
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
   }
-  inputEl.addEventListener('input', () => { lastInputWasVoice = false; autoGrow(); });
+  inputEl.addEventListener('input', () => {
+    lastInputWasVoice = false;
+    autoGrow();
+    updateCharCounter();
+    if(chats[activeId]) chats[activeId].draft = inputEl.value;
+  });
 
   const imgInput = document.getElementById('imgInput');
   const imgBtn = document.getElementById('imgBtn');
@@ -883,7 +1283,7 @@
   function addImageFile(file){
     if(!file || !file.type.startsWith('image/')) return;
     if(pendingImages.length >= MAX_IMAGES){
-      alert(`Bir safar eng ko'pi bilan ${MAX_IMAGES} ta rasm biriktirsa bo'ladi.`);
+      showToast(`Eng ko'pi bilan ${MAX_IMAGES} ta rasm`);
       return;
     }
     const reader = new FileReader();
@@ -915,6 +1315,25 @@
     if(found) e.preventDefault();
   });
 
+  // Drag & drop images onto the chat window
+  ['dragenter','dragover'].forEach(evt => {
+    messagesEl.addEventListener(evt, (e) => {
+      e.preventDefault();
+      messagesEl.classList.add('dragOver');
+    });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    messagesEl.addEventListener(evt, (e) => {
+      e.preventDefault();
+      messagesEl.classList.remove('dragOver');
+    });
+  });
+  messagesEl.addEventListener('drop', (e) => {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if(!files) return;
+    Array.from(files).forEach(f => { if(f.type.startsWith('image/')) addImageFile(f); });
+  });
+
   const fileInput = document.getElementById('fileInput');
   const fileBtn = document.getElementById('fileBtn');
   fileBtn.addEventListener('click', () => fileInput.click());
@@ -922,7 +1341,7 @@
     const file = fileInput.files[0];
     if(!file) return;
     if(file.size > 8 * 1024 * 1024){
-      alert("Fayl juda katta (8MB dan oshmasin).");
+      showToast("Fayl juda katta (8MB dan oshmasin)");
       fileInput.value = '';
       return;
     }
@@ -1002,13 +1421,14 @@
       inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + transcript;
       lastInputWasVoice = true;
       autoGrow();
+      updateCharCounter();
     };
     recognition.onend = () => { listening = false; micBtn.classList.remove('active'); };
     recognition.onerror = () => { listening = false; micBtn.classList.remove('active'); };
   }
   micBtn.addEventListener('click', () => {
     if(!recognition){
-      alert("Kechirasiz, bu brauzer ovozli kiritishni qo'llab-quvvatlamaydi.");
+      showToast("Bu brauzer ovozli kiritishni qo'llab-quvvatlamaydi");
       return;
     }
     if(listening){
@@ -1075,12 +1495,14 @@
     setSendingUI(true);
     inputEl.value = '';
     autoGrow();
+    updateCharCounter();
 
     const chat = chats[activeId];
+    chat.draft = '';
     clearAttachment();
 
     let displayText = text;
-    let userMsg = { role: 'user', content: text };
+    let userMsg = { role: 'user', content: text, time: timeNow() };
 
     if(attach && attach.kind === 'images'){
       userMsg.images = attach.images.map(img => ({ mimeType: img.mimeType, data: img.data, previewUrl: img.previewUrl }));
@@ -1096,14 +1518,7 @@
     chat.messages.push(userMsg);
     persist();
     renderChatList();
-
-    document.getElementById('emptyState')?.remove();
-    const userEl = buildMessageEl('user', displayText, {
-      imageUrls: (attach && attach.kind === 'images') ? attach.images.map(i => i.previewUrl) : [],
-      fileMeta: (attach && attach.kind === 'file') ? { name: attach.name } : null
-    });
-    messagesEl.appendChild(userEl);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    renderMessages();
 
     const isImageIntent = IMAGE_INTENT_RE.test(text);
 
@@ -1119,9 +1534,9 @@
 
   async function runImageGeneration(chat, prompt, refImage){
     const typingEl = document.createElement('div');
-    typingEl.className = 'msg bot typing';
-    typingEl.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
-    messagesEl.appendChild(typingEl);
+    typingEl.className = 'msgRow bot';
+    typingEl.innerHTML = '<div class="msg bot typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+    messagesEl.insertBefore(typingEl, scrollDownBtn);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     abortController = new AbortController();
@@ -1140,45 +1555,48 @@
 
       if(!response.ok || !data.image){
         const errMsg = (data.error && data.error.message) ? data.error.message : "Rasmni chizib bo'lmadi.";
-        messagesEl.appendChild(buildMessageEl('bot', "Xatolik: " + errMsg));
-        chat.messages.pop();
-        persist();
+        renderBotError(chat, errMsg);
         return;
       }
 
       const caption = data.text || "Mana, tayyor! 🎨";
-      const genUrl = `data:${data.image.mimeType};base64,${data.image.data}`;
-      const botEl = buildMessageEl('bot', caption, { generatedImageUrl: genUrl, rawText: caption });
-      messagesEl.appendChild(botEl);
-      chat.messages.push({ role: 'assistant', content: caption, generatedImage: data.image });
+      chat.messages.push({ role: 'assistant', content: caption, generatedImage: data.image, time: timeNow() });
       persist();
       renderChatList();
+      renderMessages();
     }catch(err){
       typingEl.remove();
       if(err.name !== 'AbortError'){
-        messagesEl.appendChild(buildMessageEl('bot', "Internetga ulanishda muammo bo'ldi. Qaytadan urinib ko'ring."));
-        chat.messages.pop();
-        persist();
+        renderBotError(chat, "Internetga ulanishda muammo bo'ldi. Qaytadan urinib ko'ring.");
       } else {
         chat.messages.pop();
         persist();
         renderChatList();
+        renderMessages();
       }
     }finally{
       abortController = null;
     }
   }
 
+  function renderBotError(chat, errMsg){
+    chat.messages.pop();
+    persist();
+    renderMessages();
+    const row = buildMessageEl('bot', "Xatolik: " + errMsg, { showActions: false });
+    messagesEl.insertBefore(row, scrollDownBtn);
+  }
+
   async function runChatStream(chat){
     const typingEl = document.createElement('div');
-    typingEl.className = 'msg bot typing';
-    typingEl.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
-    messagesEl.appendChild(typingEl);
+    typingEl.className = 'msgRow bot';
+    typingEl.innerHTML = '<div class="msg bot typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+    messagesEl.insertBefore(typingEl, scrollDownBtn);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
     abortController = new AbortController();
     let fullText = '';
-    let botEl = null;
+    let botRow = null;
     let aborted = false;
 
     try{
@@ -1193,9 +1611,7 @@
         let errMsg = 'Nomalum xatolik';
         try{ const data = await response.json(); errMsg = (data.error && data.error.message) ? data.error.message : errMsg; }catch(e){}
         typingEl.remove();
-        messagesEl.appendChild(buildMessageEl('bot', "Xatolik: " + errMsg));
-        chat.messages.pop();
-        persist();
+        renderBotError(chat, errMsg);
         return;
       }
 
@@ -1218,12 +1634,12 @@
             const obj = JSON.parse(jsonStr);
             if(obj.text){
               fullText += obj.text;
-              if(!botEl){
+              if(!botRow){
                 typingEl.remove();
-                botEl = buildMessageEl('bot', '', { showActions: false });
-                messagesEl.appendChild(botEl);
+                botRow = buildMessageEl('bot', '', { showActions: false });
+                messagesEl.insertBefore(botRow, scrollDownBtn);
               }
-              botEl._textHolder.textContent = fullText;
+              botRow._textHolder.textContent = fullText;
               messagesEl.scrollTop = messagesEl.scrollHeight;
             }
           }catch(e){}
@@ -1234,9 +1650,7 @@
         aborted = true;
       } else {
         typingEl.remove();
-        messagesEl.appendChild(buildMessageEl('bot', "Internetga ulanishda muammo bo'ldi. Wi-Fi yoki internetni tekshiring."));
-        chat.messages.pop();
-        persist();
+        renderBotError(chat, "Internetga ulanishda muammo bo'ldi. Wi-Fi yoki internetni tekshiring.");
         abortController = null;
         return;
       }
@@ -1247,26 +1661,21 @@
     if(!fullText){
       typingEl.remove();
       if(!aborted){
-        messagesEl.appendChild(buildMessageEl('bot', "Kechirasiz, javob ololmadim."));
-        chat.messages.pop();
-        persist();
+        renderBotError(chat, "Kechirasiz, javob ololmadim.");
       } else {
         chat.messages.pop();
         persist();
         renderChatList();
+        renderMessages();
       }
       return;
     }
 
-    // Yakuniy render — kod bloklari va amallar (nusxalash) bilan qayta chizamiz
-    if(botEl) botEl.remove();
     const finalText = fullText + (aborted ? '\n\n[to\'xtatildi]' : '');
-    const finalEl = buildMessageEl('bot', finalText, { rawText: finalText });
-    messagesEl.appendChild(finalEl);
-
-    chat.messages.push({ role: 'assistant', content: finalText });
+    chat.messages.push({ role: 'assistant', content: finalText, time: timeNow() });
     persist();
     renderChatList();
+    renderMessages();
     if(lastInputWasVoice && !aborted) speak(fullText);
     lastInputWasVoice = false;
   }
@@ -1289,9 +1698,13 @@
   });
 
   // ---------------- Init ----------------
+  initTheme();
   loadChats();
   renderChatList();
   renderMessages();
+  inputEl.value = (chats[activeId] && chats[activeId].draft) || '';
+  autoGrow();
+  updateCharCounter();
 </script>
 </body>
 </html>
