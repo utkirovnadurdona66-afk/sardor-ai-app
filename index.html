@@ -888,6 +888,7 @@
       <input type="file" id="fileInput" accept=".pdf,.txt,.md,.csv" style="display:none;">
       <button id="imgBtn" class="iconBtn" title="Rasm biriktirish">📷</button>
       <button id="fileBtn" class="iconBtn" title="Fayl biriktirish (PDF, TXT)">📎</button>
+      <button id="locBtn" class="iconBtn" title="Joylashuvni ulashish">📍</button>
       <button id="micBtn" class="iconBtn" title="Ovozli xabar">🎤</button>
       <select id="voiceLangSelect" title="Ovozli til" style="height:46px;border-radius:12px;border:1px solid rgba(201,162,39,0.4);background:transparent;color:var(--gold-soft);font-family:'Manrope',sans-serif;font-size:12px;padding:0 4px;flex-shrink:0;">
         <option value="auto">🌐 Avto</option>
@@ -962,6 +963,7 @@
   let sending = false;
   let pendingImages = [];
   let pendingFile = null;
+  let pendingLocation = null;
   let lastInputWasVoice = false;
   let abortController = null;
   let searchQuery = '';
@@ -1026,8 +1028,14 @@
     themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
   }
   function initTheme(){
-    const saved = localStorage.getItem(THEME_KEY) || 'dark';
-    applyTheme(saved);
+    const saved = localStorage.getItem(THEME_KEY);
+    if(saved){
+      applyTheme(saved);
+    } else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches){
+      applyTheme('light');
+    } else {
+      applyTheme('dark');
+    }
   }
   themeToggle.addEventListener('click', () => {
     const isLight = document.body.classList.contains('light');
@@ -1128,6 +1136,8 @@
   }
 
   function deleteChat(id){
+    const name = (chats[id] && chats[id].title) || 'Yangi suhbat';
+    if(!confirm(`"${name}" suhbatini butunlay o'chirishni xohlaysizmi?`)) return;
     delete chats[id];
     if(id === activeId){
       const ids = Object.keys(chats);
@@ -1307,6 +1317,17 @@
       chip.textContent = '📎 ' + opts.fileMeta.name;
       div.appendChild(chip);
     }
+    if(opts.location){
+      const chip = document.createElement('a');
+      chip.className = 'fileChip';
+      chip.style.textDecoration = 'none';
+      chip.style.color = 'inherit';
+      chip.href = `https://www.google.com/maps?q=${opts.location.lat},${opts.location.lng}`;
+      chip.target = '_blank';
+      chip.rel = 'noopener';
+      chip.textContent = '📍 Xaritada ko\'rish';
+      div.appendChild(chip);
+    }
 
     if(opts.showActions !== false && (text || opts.generatedImageUrl)){
       const actions = document.createElement('div');
@@ -1337,6 +1358,21 @@
         dlBtn.href = opts.generatedImageUrl;
         dlBtn.download = 'sardor-ai-rasm.png';
         actions.appendChild(dlBtn);
+
+        const copyImgBtn = document.createElement('button');
+        copyImgBtn.textContent = '🖼️';
+        copyImgBtn.title = 'Rasmni nusxalash';
+        copyImgBtn.addEventListener('click', async () => {
+          try{
+            const res = await fetch(opts.generatedImageUrl);
+            const blob = await res.blob();
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+            showToast('Rasm nusxalandi ✓');
+          }catch(e){
+            showToast("Nusxalab bo'lmadi, yuklab oling");
+          }
+        });
+        actions.appendChild(copyImgBtn);
       }
 
       if(role === 'bot' && opts.onRegenerate){
@@ -1370,15 +1406,25 @@
         actions.appendChild(downBtn);
       }
 
+      if(opts.onDelete){
+        const delMsgBtn = document.createElement('button');
+        delMsgBtn.textContent = '🗑';
+        delMsgBtn.title = "Xabarni o'chirish";
+        delMsgBtn.addEventListener('click', opts.onDelete);
+        actions.appendChild(delMsgBtn);
+      }
+
       div.appendChild(actions);
     }
 
     row.appendChild(div);
 
-    if(opts.time){
+    if(opts.time || opts.langFlag){
       const meta = document.createElement('div');
       meta.className = 'msgMeta';
-      meta.textContent = opts.time;
+      let metaText = opts.time || '';
+      if(opts.langFlag) metaText = (metaText ? metaText + ' · ' : '') + opts.langFlag;
+      meta.textContent = metaText;
       row.appendChild(meta);
     }
 
@@ -1417,16 +1463,39 @@
       const row = buildMessageEl(role, m.content, {
         imageUrls,
         fileMeta: m.file ? { name: m.file.name } : null,
+        location: m.location || null,
         generatedImageUrl: genUrl,
         time: m.time || '',
+        langFlag: m.content ? langFlagEmoji(m.content) : '',
         reaction: m.reaction,
         onReact: role === 'bot' ? (val) => { m.reaction = val; persist(); renderMessages(); } : null,
         onRegenerate: (role === 'bot' && idx === chat.messages.length - 1) ? () => regenerateLast() : null,
-        onEdit: (role === 'user' && idx === lastUserIdx) ? () => editAndResend(idx) : null
+        onEdit: (role === 'user' && idx === lastUserIdx) ? () => editAndResend(idx) : null,
+        onDelete: () => { chat.messages.splice(idx, 1); persist(); renderChatList(); renderMessages(); }
       });
       messagesEl.insertBefore(row, scrollDownBtn);
+
+      if(role === 'bot' && idx === chat.messages.length - 1 && !sending && m.content && !m.generatedImage){
+        const chips = document.createElement('div');
+        chips.className = 'followUps';
+        chips.style.marginLeft = '4px';
+        [['Batafsilroq tushuntir','Shu haqida batafsilroq tushuntir'],['Misol keltir','Bunga misol keltir'],['Qisqacha ayt','Buni juda qisqa qilib ayt']].forEach(([label, q]) => {
+          const b = document.createElement('button');
+          b.textContent = label;
+          b.addEventListener('click', () => { inputEl.value = q; autoGrow(); updateCharCounter(); sendMessage(); });
+          chips.appendChild(b);
+        });
+        messagesEl.insertBefore(chips, scrollDownBtn);
+      }
     });
     messagesEl.scrollTop = messagesEl.scrollHeight;
+    applyFontSize();
+  }
+
+  function langFlagEmoji(text){
+    const code = detectLangCode(text).split('-')[0];
+    const map = { uz: '🇺🇿', ru: '🇷🇺', en: '🇬🇧', tr: '🇹🇷', ar: '🇸🇦' };
+    return map[code] || '';
   }
 
   function autoTitleChat(chat, firstText){
@@ -1592,19 +1661,45 @@
       box.textContent = '📄';
       attachPreviewSlot.appendChild(box);
     }
+    if(pendingLocation){
+      const box = document.createElement('div');
+      box.className = 'fileIcon';
+      box.textContent = '📍';
+      attachPreviewSlot.appendChild(box);
+    }
     const parts = [];
     if(pendingImages.length) parts.push(pendingImages.length + ' ta rasm');
     if(pendingFile) parts.push(pendingFile.name);
+    if(pendingLocation) parts.push('Joylashuv: ' + pendingLocation.lat.toFixed(3) + ', ' + pendingLocation.lng.toFixed(3));
     attachLabel.textContent = parts.join(' + ');
     attachBar.classList.add('show');
   }
   function clearAttachment(){
     pendingImages = [];
     pendingFile = null;
+    pendingLocation = null;
     imgInput.value = '';
     fileInput.value = '';
     attachBar.classList.remove('show');
   }
+
+  const locBtn = document.getElementById('locBtn');
+  locBtn.addEventListener('click', () => {
+    if(!navigator.geolocation){
+      showToast("Bu brauzer joylashuvni qo'llab-quvvatlamaydi");
+      return;
+    }
+    showToast("Joylashuv so'ralmoqda...");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        pendingLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        showAttachBar();
+        showToast("Joylashuv qo'shildi ✓");
+      },
+      () => showToast("Joylashuvga ruxsat berilmadi"),
+      { timeout: 8000 }
+    );
+  });
 
   // ---- Til aniqlash (ovoz uchun) ----
   function detectLangCode(text){
@@ -1636,13 +1731,30 @@
     recognition.maxAlternatives = 1;
     recognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript;
-      inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + transcript;
-      lastInputWasVoice = true;
-      autoGrow();
-      updateCharCounter();
+      if(voiceRoomActive){
+        voiceListeningNow = false;
+        handleVoiceRoomTranscript(transcript);
+      } else {
+        inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + transcript;
+        lastInputWasVoice = true;
+        autoGrow();
+        updateCharCounter();
+      }
     };
-    recognition.onend = () => { listening = false; micBtn.classList.remove('active'); };
-    recognition.onerror = () => { listening = false; micBtn.classList.remove('active'); };
+    recognition.onend = () => {
+      listening = false; micBtn.classList.remove('active');
+      if(voiceRoomActive && voiceListeningNow){
+        voiceListeningNow = false;
+        setVoiceState('idle', "Gapirish uchun mikrofonga bosing");
+      }
+    };
+    recognition.onerror = () => {
+      listening = false; micBtn.classList.remove('active');
+      if(voiceRoomActive){
+        voiceListeningNow = false;
+        setVoiceState('idle', "Eshitilmadi, qayta urinib ko'ring");
+      }
+    };
   }
   micBtn.addEventListener('click', () => {
     if(!recognition){
@@ -1679,6 +1791,216 @@
     window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
   }
 
+  // ---------------- Ovozli xona (faqat gaplashish) ----------------
+  let voiceRoomActive = false;
+  let voiceListeningNow = false;
+  let voiceAbort = null;
+
+  const voiceRoomBtn = document.getElementById('voiceRoomBtn');
+  const voiceRoomOverlay = document.getElementById('voiceRoomOverlay');
+  const voiceRoomClose = document.getElementById('voiceRoomClose');
+  const voiceAvatarWrap = document.getElementById('voiceAvatarWrap');
+  const voiceStatus = document.getElementById('voiceStatus');
+  const voiceMicBig = document.getElementById('voiceMicBig');
+
+  function setVoiceState(state, text){
+    voiceAvatarWrap.className = 'voiceAvatarWrap ' + state;
+    voiceMicBig.className = 'voiceMicBig ' + state;
+    voiceStatus.textContent = text;
+  }
+
+  function openVoiceRoom(){
+    if(!SpeechRecognition){ showToast("Bu brauzer ovozli suhbatni qo'llab-quvvatlamaydi"); return; }
+    voiceRoomActive = true;
+    voiceRoomOverlay.classList.add('show');
+    setVoiceState('idle', "Gaplashish uchun mikrofonga bosing");
+  }
+  function closeVoiceRoom(){
+    voiceRoomActive = false;
+    voiceListeningNow = false;
+    voiceRoomOverlay.classList.remove('show');
+    try{ recognition && recognition.stop(); }catch(e){}
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    if(voiceAbort){ voiceAbort.abort(); voiceAbort = null; }
+    renderMessages();
+    renderChatList();
+  }
+  voiceRoomBtn.addEventListener('click', openVoiceRoom);
+  voiceRoomClose.addEventListener('click', closeVoiceRoom);
+
+  function startVoiceListening(){
+    if(!recognition) return;
+    recognition.lang = voiceLangSelect.value === 'auto' ? (navigator.language || 'uz-UZ') : voiceLangSelect.value;
+    voiceListeningNow = true;
+    setVoiceState('listening', "Tinglayapman...");
+    try{ recognition.start(); }catch(e){}
+  }
+  function voiceMicClick(){
+    if(!recognition) return;
+    if(voiceListeningNow){
+      recognition.stop();
+    } else {
+      startVoiceListening();
+    }
+  }
+  voiceMicBig.addEventListener('click', voiceMicClick);
+  voiceAvatarWrap.addEventListener('click', voiceMicClick);
+
+  async function handleVoiceRoomTranscript(transcript){
+    if(!transcript || !transcript.trim()){
+      setVoiceState('idle', "Gapirish uchun mikrofonga bosing");
+      return;
+    }
+    const chat = chats[activeId];
+    if(chat.messages.length === 0) autoTitleChat(chat, transcript);
+    chat.messages.push({ role: 'user', content: transcript, time: timeNow() });
+    persist();
+    setVoiceState('thinking', "O'ylayapman...");
+
+    voiceAbort = new AbortController();
+    let fullText = '';
+    try{
+      const response = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: chat.messages }),
+        signal: voiceAbort.signal
+      });
+      if(!response.ok){
+        let errMsg = 'Xatolik yuz berdi';
+        try{ const data = await response.json(); errMsg = (data.error && data.error.message) || errMsg; }catch(e){}
+        chat.messages.pop(); persist();
+        setVoiceState('idle', errMsg);
+        voiceAbort = null;
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while(true){
+        const { done, value } = await reader.read();
+        if(done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for(const line of lines){
+          const trimmed = line.trim();
+          if(!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.slice(5).trim();
+          if(!jsonStr || jsonStr === '[DONE]') continue;
+          try{
+            const obj = JSON.parse(jsonStr);
+            if(obj.text) fullText += obj.text;
+          }catch(e){}
+        }
+      }
+    }catch(err){
+      voiceAbort = null;
+      if(err.name !== 'AbortError'){
+        chat.messages.pop(); persist();
+        setVoiceState('idle', "Ulanishda xato, qayta urinib ko'ring");
+      }
+      return;
+    }
+    voiceAbort = null;
+
+    if(!fullText){
+      chat.messages.pop(); persist();
+      setVoiceState('idle', "Javob kelmadi, qayta urinib ko'ring");
+      return;
+    }
+
+    chat.messages.push({ role: 'assistant', content: fullText, time: timeNow() });
+    persist();
+    renderChatList();
+    playNotifySound();
+    setVoiceState('speaking', "Gapiryapman...");
+    speakInRoom(fullText);
+  }
+
+  function speakInRoom(text){
+    if(!window.speechSynthesis){ setVoiceState('idle', "Gapirish uchun mikrofonga bosing"); return; }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    const langCode = voiceLangSelect.value === 'auto' ? detectLangCode(text) : voiceLangSelect.value;
+    utter.lang = langCode;
+    utter.rate = 1;
+    utter.pitch = 0.9;
+    const prefix = langCode.split('-')[0].toLowerCase();
+    const voices = window.speechSynthesis.getVoices();
+    let chosen = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+    if(!chosen) chosen = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+    if(chosen) utter.voice = chosen;
+    utter.onend = () => {
+      if(voiceRoomActive){
+        setVoiceState('idle', "Gapirish uchun mikrofonga bosing");
+        startVoiceListening();
+      }
+    };
+    window.speechSynthesis.speak(utter);
+  }
+
+  // ---------------- About modal ----------------
+  const aboutOverlay = document.getElementById('aboutOverlay');
+  document.getElementById('aboutBtn').addEventListener('click', () => aboutOverlay.classList.add('show'));
+  document.getElementById('aboutClose').addEventListener('click', () => aboutOverlay.classList.remove('show'));
+
+  // ---------------- Esc key closes overlays ----------------
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape'){
+      if(voiceRoomActive) closeVoiceRoom();
+      aboutOverlay.classList.remove('show');
+    }
+  });
+
+  // ---------------- Bildirishnoma ovozi (yangi javob kelganda) ----------------
+  const SOUND_KEY = 'sardorAI_sound_v1';
+  const soundToggleBtn = document.getElementById('soundToggleBtn');
+  let soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
+  soundToggleBtn.textContent = soundOn ? '🔔' : '🔕';
+  soundToggleBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off');
+    soundToggleBtn.textContent = soundOn ? '🔔' : '🔕';
+  });
+  function playNotifySound(){
+    if(!soundOn) return;
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 660;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.26);
+    }catch(e){}
+    if(navigator.vibrate) navigator.vibrate(60);
+  }
+
+  // ---------------- Shrift kattaligini sozlash ----------------
+  const FONT_KEY = 'sardorAI_fontSize_v1';
+  let fontSize = parseInt(localStorage.getItem(FONT_KEY) || '15', 10);
+  function applyFontSize(){
+    document.documentElement.style.setProperty('--msg-font-size', fontSize + 'px');
+    document.querySelectorAll('.msg').forEach(el => el.style.fontSize = fontSize + 'px');
+  }
+  document.getElementById('fontUpBtn').addEventListener('click', () => {
+    fontSize = Math.min(fontSize + 1, 22);
+    localStorage.setItem(FONT_KEY, fontSize);
+    applyFontSize();
+  });
+  document.getElementById('fontDownBtn').addEventListener('click', () => {
+    fontSize = Math.max(fontSize - 1, 12);
+    localStorage.setItem(FONT_KEY, fontSize);
+    applyFontSize();
+  });
+
+  // ---------------- Tizim mavzusi initTheme() ichida hisobga olinadi ----------------
+
   // ---------------- Send / Stream / Stop ----------------
   function setSendingUI(isSending){
     sending = isSending;
@@ -1710,8 +2032,9 @@
     const text = inputEl.value.trim();
     const hasImages = pendingImages.length > 0;
     const attach = hasImages ? { kind: 'images', images: pendingImages.slice() } : pendingFile;
+    const loc = pendingLocation;
 
-    if((!text && !attach)) return;
+    if((!text && !attach && !loc)) return;
 
     setSendingUI(true);
     inputEl.value = '';
@@ -1734,7 +2057,14 @@
       userMsg.content = (text ? text + '\n\n' : '') + `--- ${attach.name} fayli mazmuni ---\n${attach.data}`;
     }
 
-    if(chat.messages.length === 0) autoTitleChat(chat, text || (attach ? (attach.name || 'Rasmlar') : 'Yangi suhbat'));
+    if(loc){
+      userMsg.location = { lat: loc.lat, lng: loc.lng };
+      const locLine = `[Foydalanuvchi joylashuvi: kenglik ${loc.lat.toFixed(5)}, uzunlik ${loc.lng.toFixed(5)}]`;
+      userMsg.content = (userMsg.content ? userMsg.content + '\n\n' : '') + locLine;
+      displayText = (displayText ? displayText + '\n\n' : '') + '📍 Joylashuv ulashildi';
+    }
+
+    if(chat.messages.length === 0) autoTitleChat(chat, text || (attach ? (attach.name || 'Rasmlar') : (loc ? 'Joylashuv' : 'Yangi suhbat')));
 
     chat.messages.push(userMsg);
     persist();
@@ -1897,8 +2227,10 @@
     persist();
     renderChatList();
     renderMessages();
+    if(!aborted) playNotifySound();
     if(lastInputWasVoice && !aborted) speak(fullText);
     lastInputWasVoice = false;
+    if(!aborted && window.innerWidth > 720) inputEl.focus();
   }
 
   document.getElementById('clearBtn').addEventListener('click', () => {
@@ -1926,6 +2258,12 @@
   inputEl.value = (chats[activeId] && chats[activeId].draft) || '';
   autoGrow();
   updateCharCounter();
+  applyFontSize();
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+    });
+  }
 </script>
 </body>
 </html>
